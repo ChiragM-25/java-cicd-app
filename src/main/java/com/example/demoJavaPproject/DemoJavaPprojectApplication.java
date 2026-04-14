@@ -11,7 +11,7 @@ public class DemoJavaPprojectApplication {
 
     @GetMapping("/")
     public String home() {
-        return "Hello from CI/CD Pipeline!";
+        return "Hello from Jenkins CI/CD Pipeline!";
     }
 
     public static void main(String[] args) {

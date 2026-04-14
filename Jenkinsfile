@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        S3_BUCKET = "my-java-cicd-bucket"
+        S3_BUCKET = "chrg-dvop-artifacts"
     }
 
     stages {

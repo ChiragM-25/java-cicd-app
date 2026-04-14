@@ -11,7 +11,7 @@ public class DemoJavaPprojectApplication {
 
     @GetMapping("/")
     public String home() {
-        return "Hello from Jenkins CI/CD Pipeline!";
+        return "Hello from Jenkins CI/CD Pipeline with Docker container!";
     }
 
     public static void main(String[] args) {

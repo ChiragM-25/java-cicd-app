@@ -54,9 +54,17 @@ pipeline {
             steps {
                 script {
                     sh """
+                    INSTANCE_IDS=\$(aws ec2 describe-instances \
+                    --filters "Name=tag:App,Values=java-app" \
+                    --query "Reservations[*].Instances[*].InstanceId" \
+                    --output text \
+                    --region ap-south-1)
+
+                    echo "Deploying to: \$INSTANCE_IDS"
+
                     aws ssm send-command \
                     --region ap-south-1 \
-                    --targets "Key=tag:App,Values=java-app" \
+                    --instance-ids \$INSTANCE_IDS \
                     --document-name "AWS-RunShellScript" \
                     --parameters commands="[
                         \\"docker pull chiragm25/java-cicd-app:latest\\",

@@ -1,15 +1,18 @@
 pipeline {
     agent any
 
-    options {
-        disableConcurrentBuilds()
-    }
-
     environment {
         IMAGE_NAME = "chiragm25/java-cicd-app"
+        AWS_REGION = "ap-south-1"
     }
 
     stages {
+
+        stage('Checkout Code') {
+            steps {
+                checkout scm
+            }
+        }
 
         stage('Build JAR') {
             steps {
@@ -19,58 +22,62 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                sh '''
+                sh """
                 docker build -t $IMAGE_NAME:$BUILD_NUMBER .
-                '''
+                """
             }
         }
 
         stage('Docker Login') {
             steps {
-                withCredentials([usernamePassword(
-                    credentialsId: 'Docker_hub_access',
-                    usernameVariable: 'USERNAME',
-                    passwordVariable: 'PASSWORD'
-                )]) {
-                    sh '''
+                withCredentials([usernamePassword(credentialsId: 'docker-hub-cred', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
+                    sh """
                     echo $PASSWORD | docker login -u $USERNAME --password-stdin
-                    '''
+                    """
                 }
             }
         }
 
         stage('Push Image') {
             steps {
-                sh '''
+                sh """
                 docker push $IMAGE_NAME:$BUILD_NUMBER
 
                 docker tag $IMAGE_NAME:$BUILD_NUMBER $IMAGE_NAME:latest
                 docker push $IMAGE_NAME:latest
-                '''
+                """
             }
         }
 
         stage('Deploy via SSM (Docker)') {
             steps {
                 script {
+
+                    // 🔍 Get EC2 instances dynamically using tag
+                    def INSTANCE_IDS = sh(
+                        script: """
+                        aws ec2 describe-instances \
+                        --filters "Name=tag:App,Values=java-app" \
+                        --query "Reservations[*].Instances[*].InstanceId" \
+                        --output text \
+                        --region $AWS_REGION
+                        """,
+                        returnStdout: true
+                    ).trim()
+
+                    echo "Deploying to: ${INSTANCE_IDS}"
+
+                    // 🚀 Deploy using SSM
                     sh """
-                    INSTANCE_IDS=\$(aws ec2 describe-instances \
-                    --filters "Name=tag:App,Values=java-app" \
-                    --query "Reservations[*].Instances[*].InstanceId" \
-                    --output text \
-                    --region ap-south-1)
-
-                    echo "Deploying to: \$INSTANCE_IDS"
-
                     aws ssm send-command \
-                    --region ap-south-1 \
-                    --instance-ids \$INSTANCE_IDS \
-                    --document-name "AWS-RunShellScript" \
-                    --parameters commands="[
-                        \\"docker pull chiragm25/java-cicd-app:latest\\",
-                        \\"docker rm -f \$(docker ps -aq) || true\\",
-                        \\"docker run -d -p 8080:8080 -e BUILD_VERSION=${BUILD_NUMBER} chiragm25/java-cicd-app:latest\\"
-                    ]"
+                    --region $AWS_REGION \
+                    --instance-ids ${INSTANCE_IDS} \
+                    --document-name AWS-RunShellScript \
+                    --parameters commands='[
+                        "docker pull $IMAGE_NAME:latest",
+                        "docker rm -f java-app-container || true",
+                        "docker run -d -p 8080:8080 --name java-app-container -e BUILD_VERSION=${BUILD_NUMBER} $IMAGE_NAME:latest"
+                    ]'
                     """
                 }
             }

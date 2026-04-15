@@ -11,7 +11,7 @@ public class DemoJavaPprojectApplication {
 
     @GetMapping("/old")
     public String home() {
-        return "Jenkins CI/CD Pipeline with AWS Infrastructure & Docker!";
+        return "Jenkins CI/CD Pipeline with AWS Infrastructure + Docker!";
     }
 
     public static void main(String[] args) {

@@ -1,6 +1,10 @@
 pipeline {
     agent any
 
+    options {
+        disableConcurrentBuilds()
+    }
+
     environment {
         IMAGE_NAME = "chiragm25/java-cicd-app"
     }
@@ -39,6 +43,7 @@ pipeline {
             steps {
                 sh '''
                 docker push $IMAGE_NAME:$BUILD_NUMBER
+
                 docker tag $IMAGE_NAME:$BUILD_NUMBER $IMAGE_NAME:latest
                 docker push $IMAGE_NAME:latest
                 '''
@@ -46,6 +51,9 @@ pipeline {
         }
 
         stage('Deploy via SSM (Docker)') {
+            when {
+                branch 'main'
+            }
             steps {
                 sh '''
                 aws ssm send-command \
@@ -58,6 +66,15 @@ pipeline {
                   ]'
                 '''
             }
+        }
+    }
+
+    post {
+        success {
+            echo "✅ Build ${BUILD_NUMBER} deployed successfully"
+        }
+        failure {
+            echo "❌ Pipeline failed. Check logs."
         }
     }
 }

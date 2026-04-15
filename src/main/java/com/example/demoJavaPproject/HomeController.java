@@ -48,10 +48,10 @@ public class HomeController {
                     <h1>🚀 CI/CD Pipeline</h1>
                     <p class="status">Application Running Successfully</p>
                     <p>Deployed via Jenkins + Docker + AWS</p>
-                    <p class="build">Build Version: """ + buildVersion + """</p>
+                    <p class="build">Build Version: %s</p>
                 </div>
             </body>
             </html>
-        """;
+        """.formatted(buildVersion);
     }
 }

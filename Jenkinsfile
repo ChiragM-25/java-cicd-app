@@ -51,11 +51,6 @@ pipeline {
         }
 
         stage('Deploy via SSM (Docker)') {
-            when {
-                expression {
-                    return env.BRANCH_NAME.contains('main')
-                }
-            }
             steps {
                 sh '''
                 aws ssm send-command \

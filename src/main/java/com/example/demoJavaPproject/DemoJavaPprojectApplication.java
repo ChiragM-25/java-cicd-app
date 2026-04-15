@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.RestController;
 @SpringBootApplication
 public class DemoJavaPprojectApplication {
 
-    @GetMapping("/")
+    @GetMapping("/old")
     public String home() {
         return "Jenkins CI/CD Pipeline with AWS Infrastructure & Docker!";
     }

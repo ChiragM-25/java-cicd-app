@@ -59,7 +59,9 @@ pipeline {
                   --parameters 'commands=[
                     "docker pull chiragm25/java-cicd-app:latest",
                     "docker rm -f $(docker ps -aq) || true",
-                    "docker run -d -p 8080:8080 chiragm25/java-cicd-app:latest"
+                    "docker run -d -p 8080:8080 \
+                    -e BUILD_VERSION=$BUILD_NUMBER \
+                    chiragm25/java-cicd-app:latest"
                   ]'
                 '''
             }

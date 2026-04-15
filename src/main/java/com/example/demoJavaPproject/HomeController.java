@@ -1,10 +1,14 @@
 package com.example.demoJavaPproject;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 public class HomeController {
+
+    @Value("${BUILD_VERSION:local}")
+    private String buildVersion;
 
     @GetMapping("/")
     public String home() {
@@ -33,6 +37,10 @@ public class HomeController {
                         color: green;
                         font-weight: bold;
                     }
+                    .build {
+                        color: #555;
+                        margin-top: 10px;
+                    }
                 </style>
             </head>
             <body>
@@ -40,6 +48,7 @@ public class HomeController {
                     <h1>🚀 CI/CD Pipeline</h1>
                     <p class="status">Application Running Successfully</p>
                     <p>Deployed via Jenkins + Docker + AWS</p>
+                    <p class="build">Build Version: """ + buildVersion + """</p>
                 </div>
             </body>
             </html>

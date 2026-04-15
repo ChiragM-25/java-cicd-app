@@ -55,6 +55,7 @@ pipeline {
                 script {
                     sh """
                     aws ssm send-command \
+                    --region ap-south-1 \
                     --targets "Key=tag:App,Values=java-app" \
                     --document-name "AWS-RunShellScript" \
                     --parameters commands="[

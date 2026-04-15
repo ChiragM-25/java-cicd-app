@@ -8,12 +8,6 @@ pipeline {
 
     stages {
 
-        stage('Checkout Code') {
-            steps {
-                checkout scm
-            }
-        }
-
         stage('Build JAR') {
             steps {
                 sh './mvnw clean package -DskipTests'
@@ -30,7 +24,7 @@ pipeline {
 
         stage('Docker Login') {
             steps {
-                withCredentials([usernamePassword(credentialsId: 'docker-hub-cred', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
+                withCredentials([usernamePassword(credentialsId: 'Docker_hub_access', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
                     sh """
                     echo $PASSWORD | docker login -u $USERNAME --password-stdin
                     """

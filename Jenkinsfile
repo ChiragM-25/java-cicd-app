@@ -52,16 +52,18 @@ pipeline {
 
         stage('Deploy via SSM (Docker)') {
             steps {
-                sh '''
-                aws ssm send-command \
-                  --targets "Key=tag:App,Values=java-app" \
-                  --document-name "AWS-RunShellScript" \
-                  --parameters 'commands=[
-                    "docker pull chiragm25/java-cicd-app:latest",
-                    "docker rm -f $(docker ps -aq) || true",
-                    "docker run -d -p 8080:8080 -e BUILD_VERSION=${BUILD_NUMBER} chiragm25/java-cicd-app:latest"
-                  ]'
-                '''
+                script {
+                    sh """
+                    aws ssm send-command \
+                    --targets "Key=tag:App,Values=java-app" \
+                    --document-name "AWS-RunShellScript" \
+                    --parameters commands="[
+                        \\"docker pull chiragm25/java-cicd-app:latest\\",
+                        \\"docker rm -f \$(docker ps -aq) || true\\",
+                        \\"docker run -d -p 8080:8080 -e BUILD_VERSION=${BUILD_NUMBER} chiragm25/java-cicd-app:latest\\"
+                    ]"
+                    """
+                }
             }
         }
     }

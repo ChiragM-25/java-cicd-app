@@ -52,7 +52,9 @@ pipeline {
 
         stage('Deploy via SSM (Docker)') {
             when {
-                branch 'main'
+                expression {
+                    return env.BRANCH_NAME.contains('main')
+                }
             }
             steps {
                 sh '''

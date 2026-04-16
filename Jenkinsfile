@@ -24,10 +24,14 @@ pipeline {
 
         stage('Docker Login') {
             steps {
-                withCredentials([usernamePassword(credentialsId: 'Docker_hub_access', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
-                    sh """
-                    echo $PASSWORD | docker login -u $USERNAME --password-stdin
-                    """
+                withCredentials([usernamePassword(
+                    credentialsId: 'Docker_hub_access',
+                    usernameVariable: 'USERNAME',
+                    passwordVariable: 'PASSWORD'
+                )]) {
+                    sh '''
+                    printf "%s" "$PASSWORD" | docker login -u "$USERNAME" --password-stdin
+                    '''
                 }
             }
         }
@@ -36,7 +40,6 @@ pipeline {
             steps {
                 sh """
                 docker push $IMAGE_NAME:$BUILD_NUMBER
-
                 docker tag $IMAGE_NAME:$BUILD_NUMBER $IMAGE_NAME:latest
                 docker push $IMAGE_NAME:latest
                 """

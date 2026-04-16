@@ -4,6 +4,7 @@ pipeline {
     environment {
         IMAGE_NAME = "chiragm25/java-cicd-app"
         AWS_REGION = "ap-south-1"
+        CONTAINER_NAME = "java-app-container"
     }
 
     stages {
@@ -14,44 +15,36 @@ pipeline {
             }
         }
 
-        stage('Build Docker Image') {
+        stage('Build & Tag Docker Image') {
             steps {
                 sh """
                 docker build -t $IMAGE_NAME:$BUILD_NUMBER .
+                docker tag $IMAGE_NAME:$BUILD_NUMBER $IMAGE_NAME:latest
                 """
             }
         }
 
-        stage('Docker Login') {
+        stage('Docker Login & Push') {
             steps {
                 withCredentials([usernamePassword(
                     credentialsId: 'Docker_hub_access',
                     usernameVariable: 'USERNAME',
                     passwordVariable: 'PASSWORD'
                 )]) {
-                    sh '''
+                    sh """
                     printf "%s" "$PASSWORD" | docker login -u "$USERNAME" --password-stdin
-                    '''
+                    docker push $IMAGE_NAME:$BUILD_NUMBER
+                    docker push $IMAGE_NAME:latest
+                    """
                 }
             }
         }
 
-        stage('Push Image') {
-            steps {
-                sh """
-                docker push $IMAGE_NAME:$BUILD_NUMBER
-                docker tag $IMAGE_NAME:$BUILD_NUMBER $IMAGE_NAME:latest
-                docker push $IMAGE_NAME:latest
-                """
-            }
-        }
-
-        stage('Deploy via SSM (Docker)') {
+        stage('Deploy to EC2 via SSM') {
             steps {
                 script {
 
-                    // 🔍 Get EC2 instances dynamically using tag
-                    def INSTANCE_IDS = sh(
+                    def instanceIds = sh(
                         script: """
                         aws ec2 describe-instances \
                         --filters "Name=tag:App,Values=java-app" \
@@ -62,19 +55,23 @@ pipeline {
                         returnStdout: true
                     ).trim()
 
-                    echo "Deploying to: ${INSTANCE_IDS}"
+                    echo "Deploying to: ${instanceIds}"
 
-                    // 🚀 Deploy using SSM
+                    def deployCmd = """
+                    docker pull $IMAGE_NAME:latest &&
+                    docker rm -f $CONTAINER_NAME || true &&
+                    docker run -d -p 8080:8080 \
+                        --name $CONTAINER_NAME \
+                        -e BUILD_VERSION=$BUILD_NUMBER \
+                        $IMAGE_NAME:latest
+                    """
+
                     sh """
                     aws ssm send-command \
                     --region $AWS_REGION \
-                    --instance-ids ${INSTANCE_IDS} \
+                    --instance-ids ${instanceIds} \
                     --document-name AWS-RunShellScript \
-                    --parameters commands='[
-                        "docker pull $IMAGE_NAME:latest",
-                        "docker rm -f java-app-container || true",
-                        "docker run -d -p 8080:8080 --name java-app-container -e BUILD_VERSION=${BUILD_NUMBER} $IMAGE_NAME:latest"
-                    ]'
+                    --parameters commands='["${deployCmd}"]'
                     """
                 }
             }

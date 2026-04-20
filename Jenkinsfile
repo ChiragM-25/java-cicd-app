@@ -4,68 +4,83 @@ pipeline {
     environment {
         IMAGE_NAME = "chiragm25/java-cicd-app"
         AWS_REGION = "ap-south-1"
-        CONTAINER_NAME = "java-app-container"
+        S3_BUCKET = "java-cicd-app-deploy-scripts"
     }
 
     stages {
 
-        stage('Build JAR') {
+        stage('Checkout') {
             steps {
-                sh './mvnw clean package -DskipTests'
+                checkout scm
             }
         }
 
-        stage('Build & Tag Docker Image') {
+        stage('Build JAR') {
+            steps {
+                sh 'mvn clean package -DskipTests'
+            }
+        }
+
+        stage('Build Docker Image') {
             steps {
                 sh """
-                docker build -t $IMAGE_NAME:$BUILD_NUMBER .
-                docker tag $IMAGE_NAME:$BUILD_NUMBER $IMAGE_NAME:latest
+                docker build -t ${IMAGE_NAME}:${BUILD_NUMBER} .
+                docker tag ${IMAGE_NAME}:${BUILD_NUMBER} ${IMAGE_NAME}:latest
                 """
             }
         }
 
-        stage('Docker Login & Push') {
+        stage('Docker Login') {
             steps {
                 withCredentials([usernamePassword(
-                    credentialsId: 'Docker_hub_access',
-                    usernameVariable: 'USERNAME',
-                    passwordVariable: 'PASSWORD'
+                    credentialsId: 'dockerhub-creds',
+                    usernameVariable: 'DOCKER_USER',
+                    passwordVariable: 'DOCKER_PASS'
                 )]) {
                     sh """
-                    printf "%s" "$PASSWORD" | docker login -u "$USERNAME" --password-stdin
-                    docker push $IMAGE_NAME:$BUILD_NUMBER
-                    docker push $IMAGE_NAME:latest
+                    echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
                     """
                 }
             }
         }
 
+        stage('Push Image') {
+            steps {
+                sh """
+                docker push ${IMAGE_NAME}:${BUILD_NUMBER}
+                docker push ${IMAGE_NAME}:latest
+                """
+            }
+        }
+
+        stage('Upload Deploy Script to S3') {
+            steps {
+                sh """
+                aws s3 cp deploy.sh s3://${S3_BUCKET}/deploy.sh
+                """
+            }
+        }
+
         stage('Deploy via SSM') {
             steps {
-                sh '''
-                # Encode script safely (pure shell)
-                ENCODED_SCRIPT=$(base64 deploy.sh | tr -d '\n')
-
+                sh """
                 aws ssm send-command \
-                --document-name "AWS-RunShellScript" \
-                --targets "Key=tag:App,Values=java-app" \
-                --parameters "commands=[
-                    \"echo $ENCODED_SCRIPT | base64 -d > /home/ec2-user/deploy.sh\",
-                    \"chmod +x /home/ec2-user/deploy.sh\",
-                    \"/home/ec2-user/deploy.sh ''' + IMAGE_NAME + ''' ''' + BUILD_NUMBER + '''\"
-                ]" \
-                --region ''' + AWS_REGION + '''
-                '''
+                  --document-name "AWS-RunShellScript" \
+                  --targets "Key=tag:App,Values=java-app" \
+                  --parameters commands=[
+                    \\"aws s3 cp s3://${S3_BUCKET}/deploy.sh /home/ec2-user/deploy.sh\\",
+                    \\"chmod +x /home/ec2-user/deploy.sh\\",
+                    \\"/home/ec2-user/deploy.sh ${IMAGE_NAME} ${BUILD_NUMBER}\\"
+                  ] \
+                  --region ${AWS_REGION}
+                """
             }
         }
     }
 
     post {
-        success {
-            echo "✅ Build ${BUILD_NUMBER} deployed successfully"
-        }
-        failure {
-            echo "❌ Pipeline failed. Check logs."
+        always {
+            cleanWs()
         }
     }
 }

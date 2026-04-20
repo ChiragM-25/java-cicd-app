@@ -49,20 +49,36 @@ pipeline {
             }
         }
 
-        // ✅ FIXED DEPLOY STAGE (only this part replaced)
         stage('Deploy via SSM') {
             steps {
-                sh """
-                aws ssm send-command \
-                  --document-name "AWS-RunShellScript" \
-                  --targets "Key=tag:App,Values=java-app" \
-                  --parameters 'commands=[
-                    "aws s3 cp s3://java-cicd-app-deploy-scripts/deploy.sh /home/ec2-user/deploy.sh",
-                    "chmod +x /home/ec2-user/deploy.sh",
-                    "/home/ec2-user/deploy.sh $IMAGE_NAME $BUILD_NUMBER"
-                  ]' \
-                  --region $AWS_REGION
-                """
+                script {
+
+                    def instanceIds = sh(
+                        script: '''
+                        aws ec2 describe-instances \
+                        --filters "Name=tag:App,Values=java-app" \
+                        --query "Reservations[*].Instances[*].InstanceId" \
+                        --output text
+                        ''',
+                        returnStdout: true
+                    ).trim()
+
+                    if (!instanceIds) {
+                        error "No EC2 instances found with tag App=java-app"
+                    }
+
+                    sh """
+                    aws ssm send-command \
+                    --document-name "AWS-RunShellScript" \
+                    --instance-ids ${instanceIds} \
+                    --parameters 'commands=[
+                        "aws s3 cp s3://java-cicd-app-deploy-scripts/deploy.sh /home/ec2-user/deploy.sh",
+                        "chmod +x /home/ec2-user/deploy.sh",
+                        "/home/ec2-user/deploy.sh ${IMAGE_NAME} ${BUILD_NUMBER}"
+                    ]' \
+                    --region ${AWS_REGION}
+                    """
+                }
             }
         }
     }

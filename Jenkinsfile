@@ -4,78 +4,65 @@ pipeline {
     environment {
         IMAGE_NAME = "chiragm25/java-cicd-app"
         AWS_REGION = "ap-south-1"
+        CONTAINER_NAME = "java-app-container"
     }
 
     stages {
 
-        stage('Checkout') {
-            steps {
-                checkout scm
-            }
-        }
-
         stage('Build JAR') {
             steps {
-                sh '''
-                chmod +x mvnw
-                ./mvnw clean package -DskipTests
-                '''
+                sh './mvnw clean package -DskipTests'
             }
         }
 
-        stage('Build Docker Image') {
+        stage('Build & Tag Docker Image') {
             steps {
-                sh '''
+                sh """
                 docker build -t $IMAGE_NAME:$BUILD_NUMBER .
                 docker tag $IMAGE_NAME:$BUILD_NUMBER $IMAGE_NAME:latest
-                '''
+                """
             }
         }
 
-        stage('Docker Login') {
+        stage('Docker Login & Push') {
             steps {
                 withCredentials([usernamePassword(
-                    credentialsId: 'dockerhub-creds',
-                    usernameVariable: 'DOCKER_USER',
-                    passwordVariable: 'DOCKER_PASS'
+                    credentialsId: 'Docker_hub_access',
+                    usernameVariable: 'USERNAME',
+                    passwordVariable: 'PASSWORD'
                 )]) {
-                    sh '''
-                    printf "%s" "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
-                    '''
+                    sh """
+                    printf "%s" "$PASSWORD" | docker login -u "$USERNAME" --password-stdin
+                    docker push $IMAGE_NAME:$BUILD_NUMBER
+                    docker push $IMAGE_NAME:latest
+                    """
                 }
             }
         }
 
-        stage('Push Docker Image') {
-            steps {
-                sh '''
-                docker push $IMAGE_NAME:$BUILD_NUMBER
-                docker push $IMAGE_NAME:latest
-                '''
-            }
-        }
-
+        // ✅ NEW STAGE (added cleanly)
         stage('Upload deploy.sh to S3') {
             steps {
-                sh '''
+                sh """
                 aws s3 cp deploy.sh s3://java-cicd-app-deploy-scripts/deploy.sh --region $AWS_REGION
-                '''
+                """
             }
         }
 
+        // ✅ FIXED DEPLOY STAGE (only this part replaced)
         stage('Deploy via SSM') {
             steps {
-                sh '''
+                sh """
                 aws ssm send-command \
                   --document-name "AWS-RunShellScript" \
                   --targets "Key=tag:App,Values=java-app" \
                   --parameters 'commands=[
                     "aws s3 cp s3://java-cicd-app-deploy-scripts/deploy.sh /home/ec2-user/deploy.sh",
                     "chmod +x /home/ec2-user/deploy.sh",
-                    "/home/ec2-user/deploy.sh '$IMAGE_NAME' '$BUILD_NUMBER'"
+                    "/home/ec2-user/deploy.sh $IMAGE_NAME $BUILD_NUMBER"
                   ]' \
                   --region $AWS_REGION
-                '''
+                """
             }
         }
     }

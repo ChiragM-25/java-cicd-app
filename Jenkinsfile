@@ -45,8 +45,8 @@ pipeline {
                 script {
 
                     sh """
-                    ENCODED_SCRIPT=\$(base64 -w 0 deploy.sh)
-                    
+                    ENCODED_SCRIPT=\$(base64 deploy.sh | tr -d '\\n')
+
                     aws ssm send-command \
                     --document-name "AWS-RunShellScript" \
                     --targets "Key=tag:App,Values=java-app" \

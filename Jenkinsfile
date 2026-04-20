@@ -42,22 +42,20 @@ pipeline {
 
         stage('Deploy via SSM') {
             steps {
-                script {
+                sh '''
+                # Encode script safely (pure shell)
+                ENCODED_SCRIPT=$(base64 deploy.sh | tr -d '\n')
 
-                    sh """
-                    ENCODED_SCRIPT=\$(base64 deploy.sh | tr -d '\\n')
-
-                    aws ssm send-command \
-                    --document-name "AWS-RunShellScript" \
-                    --targets "Key=tag:App,Values=java-app" \
-                    --parameters 'commands=[
-                        "echo ${encodedScript} | base64 -d > /home/ec2-user/deploy.sh",
-                        "chmod +x /home/ec2-user/deploy.sh",
-                        "/home/ec2-user/deploy.sh ${IMAGE_NAME} ${BUILD_NUMBER}"
-                    ]' \
-                    --region ${AWS_REGION}
-                    """
-                }
+                aws ssm send-command \
+                --document-name "AWS-RunShellScript" \
+                --targets "Key=tag:App,Values=java-app" \
+                --parameters "commands=[
+                    \"echo $ENCODED_SCRIPT | base64 -d > /home/ec2-user/deploy.sh\",
+                    \"chmod +x /home/ec2-user/deploy.sh\",
+                    \"/home/ec2-user/deploy.sh ''' + IMAGE_NAME + ''' ''' + BUILD_NUMBER + '''\"
+                ]" \
+                --region ''' + AWS_REGION + '''
+                '''
             }
         }
     }

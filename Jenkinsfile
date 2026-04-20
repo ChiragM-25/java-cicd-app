@@ -42,21 +42,23 @@ pipeline {
 
         stage('Deploy via SSM') {
             steps {
-                sh """
-                aws ssm send-command \
-                --document-name "AWS-RunShellScript" \
-                --targets "Key=tag:App,Values=java-app" \
-                --parameters 'commands=[
-                    "cd /home/ec2-user",
-                    "rm -f deploy.sh",
-                    "cat > deploy.sh <<EOF",
-                    "${readFile('deploy.sh')}",
-                    "EOF",
-                    "chmod +x deploy.sh",
-                    "./deploy.sh ${IMAGE_NAME} ${BUILD_NUMBER}"
-                ]' \
-                --region ${AWS_REGION}
-                """
+                script {
+
+                    def scriptContent = readFile('deploy.sh')
+                    def encodedScript = scriptContent.bytes.encodeBase64().toString()
+
+                    sh """
+                    aws ssm send-command \
+                    --document-name "AWS-RunShellScript" \
+                    --targets "Key=tag:App,Values=java-app" \
+                    --parameters 'commands=[
+                        "echo ${encodedScript} | base64 -d > /home/ec2-user/deploy.sh",
+                        "chmod +x /home/ec2-user/deploy.sh",
+                        "/home/ec2-user/deploy.sh ${IMAGE_NAME} ${BUILD_NUMBER}"
+                    ]' \
+                    --region ${AWS_REGION}
+                    """
+                }
             }
         }
     }

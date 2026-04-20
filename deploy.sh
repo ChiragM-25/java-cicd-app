@@ -25,7 +25,7 @@ echo "Active: $OLD_ENV ($OLD_PORT)"
 echo "Deploying to: $NEW_ENV ($NEW_PORT)"
 
 echo "=== Pulling latest image ==="
-docker pull $IMAGE_NAME:latest
+docker pull $IMAGE_NAME:$BUILD_NUMBER
 
 echo "=== Removing existing $NEW_ENV container if exists ==="
 docker rm -f java-app-$NEW_ENV || true
@@ -36,7 +36,7 @@ docker run -d \
   -p $NEW_PORT:8080 \
   -e BUILD_VERSION=$BUILD_NUMBER \
   --restart unless-stopped \
-  $IMAGE_NAME:latest
+  $IMAGE_NAME:$BUILD_NUMBER
 
 echo "=== Waiting for app to boot ==="
 sleep 10

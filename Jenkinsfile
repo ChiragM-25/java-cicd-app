@@ -44,10 +44,9 @@ pipeline {
             steps {
                 script {
 
-                    def scriptContent = readFile('deploy.sh')
-                    def encodedScript = scriptContent.bytes.encodeBase64().toString()
-
                     sh """
+                    ENCODED_SCRIPT=\$(base64 -w 0 deploy.sh)
+                    
                     aws ssm send-command \
                     --document-name "AWS-RunShellScript" \
                     --targets "Key=tag:App,Values=java-app" \

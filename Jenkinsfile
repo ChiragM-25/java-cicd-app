@@ -40,40 +40,23 @@ pipeline {
             }
         }
 
-        stage('Deploy to EC2 via SSM') {
+        stage('Deploy via SSM') {
             steps {
-                script {
-
-                    def instanceIds = sh(
-                        script: """
-                        aws ec2 describe-instances \
-                        --filters "Name=tag:App,Values=java-app" \
-                        --query "Reservations[*].Instances[*].InstanceId" \
-                        --output text \
-                        --region $AWS_REGION
-                        """,
-                        returnStdout: true
-                    ).trim()
-
-                    echo "Deploying to: ${instanceIds}"
-
-                    def deployCmd = """
-                    docker pull $IMAGE_NAME:latest &&
-                    docker rm -f $CONTAINER_NAME || true &&
-                    docker run -d -p 8080:8080 \
-                        --name $CONTAINER_NAME \
-                        -e BUILD_VERSION=$BUILD_NUMBER \
-                        $IMAGE_NAME:latest
-                    """
-
-                    sh """
-                    aws ssm send-command \
-                    --region $AWS_REGION \
-                    --instance-ids ${instanceIds} \
-                    --document-name AWS-RunShellScript \
-                    --parameters commands='["${deployCmd}"]'
-                    """
-                }
+                sh """
+                aws ssm send-command \
+                --document-name "AWS-RunShellScript" \
+                --targets "Key=tag:App,Values=java-app" \
+                --parameters 'commands=[
+                    "cd /home/ec2-user",
+                    "rm -f deploy.sh",
+                    "cat > deploy.sh <<EOF",
+                    "${readFile('deploy.sh')}",
+                    "EOF",
+                    "chmod +x deploy.sh",
+                    "./deploy.sh ${IMAGE_NAME} ${BUILD_NUMBER}"
+                ]' \
+                --region ${AWS_REGION}
+                """
             }
         }
     }

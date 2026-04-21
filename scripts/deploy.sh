@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+set -euxo pipefail
 
 IMAGE_NAME=$1
 BUILD_NUMBER=$2
@@ -24,7 +24,7 @@ sleep 10
 echo "=== Health check ==="
 curl -f http://localhost:8080/actuator/health
 
-echo "=== Deployment complete ==="
-
 echo "=== Cleaning up old images ==="
 docker image prune -af || true
+
+echo "=== Deployment complete ==="

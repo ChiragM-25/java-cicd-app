@@ -19,7 +19,7 @@ docker run -d \
   $IMAGE_NAME:$BUILD_NUMBER
 
 echo "=== Waiting for app ==="
-sleep 5
+sleep 10
 
 echo "=== Health check ==="
 curl -f http://localhost:8080/actuator/health

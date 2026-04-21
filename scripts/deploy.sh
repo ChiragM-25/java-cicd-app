@@ -8,11 +8,11 @@ echo "=== Pulling image ==="
 docker pull $IMAGE_NAME:$BUILD_NUMBER
 
 echo "=== Stopping old container ==="
-docker rm -f java-app || true
+docker rm -f java-app-container || true
 
 echo "=== Starting new container ==="
 docker run -d \
-  --name java-app \
+  --name java-app-container \
   -p 8080:8080 \
   -e BUILD_VERSION=$BUILD_NUMBER \
   --restart unless-stopped \

@@ -25,3 +25,6 @@ echo "=== Health check ==="
 curl -f http://localhost:8080/actuator/health
 
 echo "=== Deployment complete ==="
+
+echo "=== Cleaning up old images ==="
+docker image prune -af || true

@@ -40,11 +40,10 @@ pipeline {
             }
         }
 
-        // ✅ NEW STAGE (added cleanly)
         stage('Upload deploy.sh to S3') {
             steps {
                 sh """
-                aws s3 cp deploy.sh s3://java-cicd-app-deploy-scripts/deploy.sh --region $AWS_REGION
+                aws s3 cp scripts/deploy.sh s3://java-cicd-app-deploy-scripts/deploy.sh --region $AWS_REGION
                 """
             }
         }
@@ -52,7 +51,6 @@ pipeline {
         stage('Deploy via SSM') {
             steps {
                 script {
-
                     def instanceIds = sh(
                         script: '''
                         aws ec2 describe-instances \
